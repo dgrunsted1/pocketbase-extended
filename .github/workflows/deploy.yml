@@ -22,7 +22,7 @@ jobs:
         
     - name: Build
       run: |
-        go build -v -o pocketbase ./...
+        go build -v -o pocketbase
         
     - name: Deploy to server
       uses: appleboy/scp-action@v0.1.4
