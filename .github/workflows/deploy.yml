@@ -23,6 +23,16 @@ jobs:
     - name: Build
       run: |
         go build -v -o pocketbase
+
+    - name: Stop service
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.GIT_ACTIONS_USER }}
+        key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
+        script: |
+          # Ensure the service is stopped
+          systemctl stop pocketbase.service
         
     - name: Deploy to server
       uses: appleboy/scp-action@v0.1.4
