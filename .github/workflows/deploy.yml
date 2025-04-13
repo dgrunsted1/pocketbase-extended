@@ -1,5 +1,5 @@
-name: Build and Deploy Go Application
-
+name: Deploy Prod
+run-name: ${{ github.actor }} is deploying to production 🚀
 on:
   push:
     branches: [ master ]
@@ -32,7 +32,7 @@ jobs:
         key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
         script: |
           # Ensure the service is stopped
-          systemctl stop pocketbase.service
+          sudo systemctl stop pocketbase.service
         
     - name: Deploy to server
       uses: appleboy/scp-action@v0.1.4
@@ -51,5 +51,5 @@ jobs:
         username: ${{ secrets.GIT_ACTIONS_USER }}
         key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
         script: |
-          systemctl restart pocketbase.service
-          systemctl status pocketbase.service
+          sudo systemctl restart pocketbase.service
+          sudo systemctl status pocketbase.service
