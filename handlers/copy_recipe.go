@@ -3,7 +3,6 @@ package handlers
 import (
     "log"
     "net/http"
-    "strings"
     "github.com/pocketbase/dbx"
     "github.com/pocketbase/pocketbase"
     "github.com/pocketbase/pocketbase/core"
@@ -84,7 +83,6 @@ func HandleCopy(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
 
         var recipeQuery = get_copy_query(addData)
         recipes := []Recipe{}
-		app.DB().
         if err := app.DB().NewQuery(recipeQuery).Bind(params).All(&recipes); err != nil {
             log.Printf("Database error: %v", err)
         }

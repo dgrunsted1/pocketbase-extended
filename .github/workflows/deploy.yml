@@ -1,29 +1,44 @@
-name: Deploy to Production
-run-name: ${{ github.actor }} is deploying to production 🚀
-on: 
-    push:
-        branches: [ master ]
+name: Build and Deploy Go Application
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Deploy using ssh
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.GIT_ACTIONS_USER }}
-          key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
-          port: 22
-          script: |
-            cd pocketbase-extended/
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-            git fetch --all
-            git reset --hard origin/master
-            git status
-            pwd
-            ls
-            # sudo systemctl restart pocketbase
-            # systemctl status pocketbase
-            
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        
+    - name: Build
+      run: |
+        go build -v -o pocketbase ./...
+        
+    - name: Deploy to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.GIT_ACTIONS_USER }}
+        key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
+        source: "pocketbase"
+        target: "/home/git_actions/pb"
+        
+    - name: Restart application
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.GIT_ACTIONS_USER }}
+        key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
+        script: |
+          systemctl restart pocketbase.service
+          systemctl status pocketbase.service
