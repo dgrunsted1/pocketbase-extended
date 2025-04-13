@@ -12,7 +12,7 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.GIT_ACTIONS_USER }}
-          key: ${{ secrets.PRIVATE_KEY }}
+          key: ${{ secrets.GIT_ACTIONS_PRIVATE_KEY }}
           port: 22
           script: |
             pwd 
