@@ -51,5 +51,5 @@ jobs:
         username: ${{ secrets.GIT_ACTIONS_USER }}
         key: ${{ secrets.GIT_ACTIONS_PRIVETE_KEY }}
         script: |
-          sudo systemctl restart pocketbase.service
+          sudo systemctl start pocketbase.service
           sudo systemctl status pocketbase.service
