@@ -22,7 +22,7 @@ jobs:
         
     - name: Build
       run: |
-        go build -v -o pocketbase
+        CGO_ENABLED=0 go build -ldflags="-s -w" -o pocketbase
 
     - name: Stop service
       uses: appleboy/ssh-action@v1.0.0
