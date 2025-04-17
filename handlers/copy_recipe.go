@@ -82,7 +82,7 @@ func HandleCopy(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
 			new_recipe.Set("time_new", original_recipe.Get("time_new"))
 			new_recipe.Set("servings_new", original_recipe.Get("servings_new"))
 			new_recipe.Set("ingr_num", original_recipe.Get("ingr_num"))
-			err = app.Save(new_recipe);
+			err = txApp.Save(new_recipe);
 			if err != nil {
 				return err
 			}
@@ -103,28 +103,30 @@ func HandleCopy(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
 				"new_recipe_id":            new_recipe.Id,
 			};
 
-			result := AddResult{}
+			var result = []AddResult{}
 			if err := txApp.DB().NewQuery(insertIngredientsSQL).Bind(params).All(&result); err != nil {
 				return err
 			}
 			
 			// Step 3: Update the ingr_list in the new recipe to include the newly inserted ingredients
-			// updateIngrListSQL := `
-			// 	UPDATE Recipe
-			// 	SET ingr_list = (
-			// 		SELECT group_concat(id, ',')
-			// 		FROM ingredients
-			// 		WHERE recipe = {:new_recipe_id}
-			// 	)
-			// 	WHERE id = {:new_recipe_id}
-			// `
-			
-			// if err := txApp.DB().NewQuery(updateIngrListSQL).Bind(params).All(&result); err != nil {
-			// 	return err
-			// }
-			return e.JSON(http.StatusOK, map[string]interface{}{
-				"recipe": original_recipe,
-			})
+			ingredientIds, err := txApp.FindAllRecords("ingredients", dbx.HashExp{"recipe": new_recipe.Id})
+			if err != nil {
+				return err
+			}
+			for n := range len(ingredientIds) {
+				print(n.Id);
+
+			}
+			updateIngrListSQL := `
+					SELECT id
+					FROM ingredients
+					WHERE recipe = {:new_recipe_id}
+			`
+			var ingredient_ids = []AddResult{}
+			if err := txApp.DB().NewQuery(updateIngrListSQL).Bind(params).All(&ingredient_ids); err != nil {
+				return err
+			}
+			return e.JSON(http.StatusOK, map[string]interface{}{})
 		})
 		
 		if err != nil {
