@@ -122,11 +122,11 @@ func get_recipe_query(searchData SearchRequest) string {
 		case "Most Time":
 			query += ` order by r.time_new desc`
 		case "Most Recent":
-			query += ` order by r.created asc`
-		case "Least Recent":
 			query += ` order by r.created desc`
-		default:
+		case "Least Recent":
 			query += ` order by r.created asc`
+		default:
+			query += ` order by r.created desc`
 	}
 	return query;
 }
