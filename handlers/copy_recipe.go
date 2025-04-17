@@ -82,7 +82,10 @@ func HandleCopy(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
 			new_recipe.Set("time_new", original_recipe.Get("time_new"))
 			new_recipe.Set("servings_new", original_recipe.Get("servings_new"))
 			new_recipe.Set("ingr_num", original_recipe.Get("ingr_num"))
-			
+			err = app.Save(new_recipe);
+			if err != nil {
+				return err
+			}
 			// Step 2: Copy the ingredients associated with the original recipe to the new recipe
 			insertIngredientsSQL := `
 				INSERT INTO ingredients (
