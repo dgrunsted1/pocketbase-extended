@@ -49,7 +49,7 @@ func search_tables() string {
 
 func search_filters(cat_type string, searchData SearchRequest) string {
 	print(cat_type)
-	var query = ` and made = 1`
+	var query = ` made = 1`
 	if (len(searchData.SelectedCategories) > 0 && cat_type != "category") {
 		query += ` and r.category IN (`
 		for i := range searchData.SelectedCategories {
@@ -104,7 +104,7 @@ func search_filters(cat_type string, searchData SearchRequest) string {
 func get_recipe_query(searchData SearchRequest) string {
 	var query = `SELECT r.id, r.title, r.author, r.time, r.image, r.category, r.url_id, r.cuisine, r.country, (select count(*) from json_each(r.directions)) as directions, (select count(*) from json_each(r.ingr_list)) as ingr_list, r.servings, r.user
 					`+search_tables()+`
-					WHERE made = 1`+search_filters("", searchData)
+					WHERE`+search_filters("", searchData)
 
 	query += ` group by r.id`
 
@@ -133,7 +133,7 @@ func get_recipe_query(searchData SearchRequest) string {
 
 func get_categories_query(cat_type string, searchData SearchRequest) string {
 	var query = `SELECT Distinct r.`+cat_type+` as id`+search_tables()+`
-					WHERE r.`+cat_type+` <> ""`+search_filters(cat_type, searchData)
+					WHERE r.`+cat_type+` <> "" and`+search_filters(cat_type, searchData)
 
 	query += ` order by r.`+cat_type+` asc`
 	return query;
