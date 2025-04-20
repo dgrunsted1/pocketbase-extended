@@ -113,17 +113,12 @@ func HandleCopy(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
 			if err != nil {
 				return err
 			}
-			for n := range len(ingredientIds) {
-				print(n.Id);
 
+			for _, curr := range ingredientIds {
+				new_recipe.Set("ingr_list+", curr.Id)
 			}
-			updateIngrListSQL := `
-					SELECT id
-					FROM ingredients
-					WHERE recipe = {:new_recipe_id}
-			`
-			var ingredient_ids = []AddResult{}
-			if err := txApp.DB().NewQuery(updateIngrListSQL).Bind(params).All(&ingredient_ids); err != nil {
+			err = txApp.Save(new_recipe);
+			if err != nil {
 				return err
 			}
 			return e.JSON(http.StatusOK, map[string]interface{}{})
