@@ -13,7 +13,6 @@ import (
 
 type SaveRequest struct {
 	UserID   string `json:"user_id"`
-	User   string `json:"user"`
 	Note string `json:"note"`
 	Author string `json:"author"`
 	Category string `json:"category"`
@@ -23,9 +22,7 @@ type SaveRequest struct {
 	Directions []string `json:"directions"`
 	Expand Expand `json:"expand"`
 	Favorite bool `json:"favorite"`
-	Id string `json:"id"`
 	Image string `json:"image"`
-	Made bool `json:"made"`
 	Servings string `json:"servings"`
 	Time string `json:"time"`
 	Title string `json:"title"`
@@ -49,30 +46,6 @@ type Ingredient struct {
     UnitPlural     string   `json:"unitPlural"`
     Updated        string   `json:"updated"`
 }
-// type AddResult struct {
-// 	Id string `db:"id" json:"id"`
-// }
-
-// type AddRecipe struct {
-// 	Title       string `db:"title" json:"title"`
-// 	Id       	string `db:"id" json:"id"`
-// 	Description	string `db:"description" json:"description"`
-// 	Url			string `db:"url" json:"url"`
-// 	Author 		string `db:"author" json:"author"`
-// 	Time        string `db:"time" json:"time"`
-// 	Image       string `db:"image" json:"image"`
-// 	Category    string `db:"category" json:"category"`
-// 	Cuisine     string `db:"cuisine" json:"cuisine"`
-// 	Country     string `db:"country" json:"country"`
-// 	Directions 	string `db:"directions" json:"directions"`
-// 	IngrList 	string `db:"ingr_list" json:"ingr_list"`
-// 	Servings 	string `db:"servings" json:"servings"`
-// 	User 		string `db:"user" json:"user"`
-// 	Notes 		string `db:"notes" json:"notes"`
-// 	TimeNew 	string `db:"time_new" json:"time_new"`
-// 	IngrNum 	string `db:"ingr_num" json:"ingr_num"`
-// 	ServingsNew	string `db:"servings_new" json:"servings_new"`
-// }
 
 func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
 	return func(e *core.RequestEvent) error {
@@ -81,23 +54,15 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 		if err := e.BindBody(&saveData); err != nil {
 			return e.BadRequestError("Failed to read request data", err)
 		}
-
-		if (saveData.UserID != saveData.User) {
-			return e.BadRequestError("Failed to save recipe", "unauthorized")
-		}
-
+		log.Print(saveData)
 		err := app.RunInTransaction(func(txApp core.App) error {
 
-			// collection, err := txApp.FindCollectionByNameOrId("recipes")
-			// if err != nil {
-			// 	log.Printf("Failed to find collection: %v", err)
-			// 	return err
-			// }
-			new_recipe, err := txApp.FindRecordById("recipes", saveData.Id)
+			collection, err := txApp.FindCollectionByNameOrId("recipes")
 			if err != nil {
-				log.Printf("Failed to find recipe: %v", err)
+				log.Printf("Failed to find collection: %v", err)
 				return err
 			}
+			new_recipe := core.NewRecord(collection)
 
 			mins, err := ParseTimeToMinutes(saveData.Time);
 			if (err != nil){
@@ -112,6 +77,7 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 
 			new_recipe.Set("title", saveData.Title)
 			new_recipe.Set("description", saveData.Description)
+			new_recipe.Set("user", saveData.UserID)
 			new_recipe.Set("url", saveData.Url)
 			new_recipe.Set("author", saveData.Author)
 			new_recipe.Set("time", saveData.Time)
@@ -122,7 +88,6 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 			new_recipe.Set("country", saveData.Country)
 			new_recipe.Set("notes", saveData.Note)
 			new_recipe.Set("category", saveData.Category)
-			new_recipe.Set("made", saveData.Made)
 			new_recipe.Set("favorite", saveData.Favorite)
 			new_recipe.Set("time_new", mins)
 			new_recipe.Set("servings_new", servings)
@@ -131,42 +96,35 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 			if err != nil {
 				return err
 			}
-		// 	// Step 2: Copy the ingredients associated with the original recipe to the new recipe
-		// 	insertIngredientsSQL := `
-		// 		INSERT INTO ingredients (
-		// 			quantity, ingredient, unit, unitPlural, symbol, recipe
-		// 		)
-		// 		SELECT
-		// 			i.quantity, i.ingredient, i.unit, i.unitPlural, i.symbol, {:new_recipe_id}
-		// 		FROM recipes r 
-		// 		JOIN json_each(r.ingr_list) AS je 
-		// 		JOIN ingredients i ON i.id = je.value
-		// 		WHERE r.id = {:original_recipe_id}
-		// 	`
-		// 	var params = dbx.Params{
-		// 		"original_recipe_id":       original_recipe.Id,
-		// 		"new_recipe_id":            new_recipe.Id,
-		// 	};
 
-		// 	var result = []AddResult{}
-		// 	if err := txApp.DB().NewQuery(insertIngredientsSQL).Bind(params).All(&result); err != nil {
-		// 		return err
-		// 	}
-			
-		// 	// Step 3: Update the ingr_list in the new recipe to include the newly inserted ingredients
-		// 	ingredientIds, err := txApp.FindAllRecords("ingredients", dbx.HashExp{"recipe": new_recipe.Id})
-		// 	if err != nil {
-		// 		return err
-		// 	}
+			ingr_collection, err := txApp.FindCollectionByNameOrId("ingredients")
+			if err != nil {
+				log.Printf("Failed to find ingredient collection: %v", err)
+				return err
+			}
+			var ingr_ids []string
+			for _, curr := range saveData.Expand.IngrList {
+				new_ingr := core.NewRecord(ingr_collection)
+				new_ingr.Set("quantity", curr.Quantity)
+				new_ingr.Set("ingredient", curr.Ingredient)
+				new_ingr.Set("unit", curr.Unit)
+				new_ingr.Set("unitPlural", curr.UnitPlural)
+				new_ingr.Set("symbol", curr.Symbol)
+				new_ingr.Set("recipe", new_recipe.Id)
+				err = txApp.Save(new_ingr)
+				if err != nil {
+					return err
+				}
+				ingr_ids = append(ingr_ids, new_ingr.Id)
+			}
 
-		// 	for _, curr := range ingredientIds {
-		// 		new_recipe.Set("ingr_list+", curr.Id)
-		// 	}
-		// 	err = txApp.Save(new_recipe);
-		// 	if err != nil {
-		// 		return err
-		// 	}
-			return e.JSON(http.StatusOK, map[string]interface{}{})
+			new_recipe.Set("ingr_list", ingr_ids)
+			err = txApp.Save(new_recipe)
+			if err != nil {
+				return err
+			}
+
+			return nil
 		})
 		
 		if err != nil {
@@ -175,8 +133,8 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 		}
 		
 		return e.JSON(http.StatusOK, map[string]interface{}{
+			"status": 200,
 			"success": true,
-			"data": saveData,
 		})
 	}
 }
