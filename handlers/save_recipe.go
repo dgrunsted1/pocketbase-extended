@@ -23,7 +23,7 @@ type SaveRequest struct {
 	Expand Expand `json:"expand"`
 	Favorite bool `json:"favorite"`
 	Image string `json:"image"`
-	Servings string `json:"servings"`
+	Servings int `json:"servings"`
 	Time string `json:"time"`
 	Title string `json:"title"`
 	Url string `json:"url"`
@@ -69,11 +69,6 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 				log.Printf("Failed to parse minutes: %v", err)
 				return err
 			}
-			servings, err := get_servings_int(saveData.Servings)
-			if (err != nil) {
-				log.Printf("Failed to parse servings: %v", err)
-				return err
-			}
 
 			new_recipe.Set("title", saveData.Title)
 			new_recipe.Set("description", saveData.Description)
@@ -90,7 +85,7 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 			new_recipe.Set("category", saveData.Category)
 			new_recipe.Set("favorite", saveData.Favorite)
 			new_recipe.Set("time_new", mins)
-			new_recipe.Set("servings_new", servings)
+			new_recipe.Set("servings_new", saveData.Servings)
 			new_recipe.Set("ingr_num", len(saveData.Expand.IngrList))
 			err = txApp.Save(new_recipe);
 			if err != nil {
@@ -136,24 +131,6 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 			"status": 200,
 			"success": true,
 		})
-	}
-}
-
-func get_servings_int(serving_str string) (int, error) {
-	serving_str = strings.ToLower(serving_str)
-
-	servings_regex := regexp.MustCompile(`(\d+(?:\.\d+)?)`)
-
-	servings_matches := servings_regex.FindStringSubmatch(serving_str)
-
-	if len(servings_matches) > 1 {
-		h, err := strconv.Atoi(servings_matches[1])
-		if err != nil {
-			return 0, err
-		}
-		return int(h), nil
-	}else {
-		return 0, nil
 	}
 }
 
