@@ -157,21 +157,22 @@ func ParseTimeToMinutes(timeStr string) (int, error) {
 	// Extract hours if present
 	hourMatches := hourRegex.FindStringSubmatch(timeStr)
 	if len(hourMatches) > 1 {
-		h, err := strconv.Atoi(hourMatches[1])
+		h, err := strconv.ParseFloat(hourMatches[1], 64)
 		if err != nil {
 			return 0, err
 		}
-		hours = h
+		hours = int(h)
+		minutes = int((h-float64(hours))*60)
 	}
 	
 	// Extract minutes if present
 	minuteMatches := minuteRegex.FindStringSubmatch(timeStr)
 	if len(minuteMatches) > 1 {
-		m, err := strconv.Atoi(minuteMatches[1])
+		m, err := strconv.ParseFloat(minuteMatches[1], 64)
 		if err != nil {
 			return 0, err
 		}
-		minutes = m
+		minutes += int(m)
 	}
 	
 	// If neither hours nor minutes were found, try parsing just a number as minutes
@@ -180,11 +181,11 @@ func ParseTimeToMinutes(timeStr string) (int, error) {
 		numRegex := regexp.MustCompile(`^\s*(\d+)\s*$`)
 		numMatches := numRegex.FindStringSubmatch(timeStr)
 		if len(numMatches) > 1 {
-			m, err := strconv.Atoi(numMatches[1])
+			m, err := strconv.ParseFloat(numMatches[1], 64)
 			if err != nil {
 				return 0, err
 			}
-			minutes = m
+			minutes = int(m)
 		}
 	}
 	
