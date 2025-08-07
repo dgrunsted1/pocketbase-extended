@@ -1,14 +1,18 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
+
 	// "github.com/pocketbase/dbx"
-	"github.com/pocketbase/pocketbase"
-	"github.com/pocketbase/pocketbase/core"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/core"
 )
 
 type SaveRequest struct {
@@ -54,7 +58,6 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 		if err := e.BindBody(&saveData); err != nil {
 			return e.BadRequestError("Failed to read request data", err)
 		}
-		log.Print(saveData)
 		err := app.RunInTransaction(func(txApp core.App) error {
 
 			collection, err := txApp.FindCollectionByNameOrId("recipes")
@@ -69,6 +72,12 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 				log.Printf("Failed to parse minutes: %v", err)
 				return err
 			}
+
+			url_id, err := GenerateUnigueUrlId(saveData.Title, app)
+
+			if err != nil {
+				log.Print(err)
+			}					
 
 			new_recipe.Set("title", saveData.Title)
 			new_recipe.Set("description", saveData.Description)
@@ -87,6 +96,7 @@ func HandleSaveRecipe(app *pocketbase.PocketBase) func(e *core.RequestEvent) err
 			new_recipe.Set("time_new", mins)
 			new_recipe.Set("servings_new", saveData.Servings)
 			new_recipe.Set("ingr_num", len(saveData.Expand.IngrList))
+			new_recipe.Set("url_id", url_id)
 			err = txApp.Save(new_recipe);
 			if err != nil {
 				return err
@@ -193,4 +203,31 @@ func ParseTimeToMinutes(timeStr string) (int, error) {
 	totalMinutes := (hours * 60) + minutes
 	
 	return totalMinutes, nil
+}
+
+func GenerateUnigueUrlId(title string, app *pocketbase.PocketBase) (string, error) {
+	new_id := strings.ReplaceAll(title, " ", "_")
+	found := true
+	for found {
+		temp_id := new_id + "_" + strconv.Itoa(rand.Intn(9000) + 1000)
+		records, err := app.FindRecordsByFilter(
+			"recipes", 
+			"url_id = {:url_id}", 
+			"-created", 
+			1, // limit to 1 record
+			0, // offset
+			map[string]any{"url_id": temp_id},
+		)
+		
+		if err != nil {
+			log.Printf("Error looking for url_id record: %v", err)
+			return "error", err
+		}
+		
+		if len(records) == 0 {
+			found = false
+			new_id = temp_id
+		}
+	}
+	return new_id, nil
 }
