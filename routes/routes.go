@@ -32,4 +32,10 @@ func RegisterRoutes(app *pocketbase.PocketBase) {
         
         return se.Next()
     })
+
+    app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+        se.Router.POST("/api/grocery_list", handlers.HandleGroceryList(app))
+        
+        return se.Next()
+    })
 }
