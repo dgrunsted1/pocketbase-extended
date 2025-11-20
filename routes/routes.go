@@ -38,4 +38,10 @@ func RegisterRoutes(app *pocketbase.PocketBase) {
         
         return se.Next()
     })
+
+    app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+        se.Router.POST("/api/data_from_pdf", handlers.HandleDataFromPDF(app))
+        
+        return se.Next()
+    })
 }
