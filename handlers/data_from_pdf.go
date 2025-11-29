@@ -67,7 +67,6 @@ func HandleDataFromPDF(app *pocketbase.PocketBase) func(e *core.RequestEvent) er
 		if imageRequestData.Image == "" {
 			return e.BadRequestError("No image provided", nil)
 		}
-		fmt.Printf("Received image of type: %s\n", imageRequestData.ImageType)
 
 		processedData, err := process_image(imageRequestData.Image, imageRequestData.ImageType)
 		if err != nil {
@@ -88,13 +87,13 @@ func HandleDataFromPDF(app *pocketbase.PocketBase) func(e *core.RequestEvent) er
 
 func process_image(base64Image string, mediaType string) (interface{}, error) {
 	if mediaType == "" {
-    mediaType = "image/jpeg"
+    mediaType = "jpeg"
 }
 
 // Load AWS configuration from environment variables
 cfg, err := config.LoadDefaultConfig(
     context.TODO(),
-    config.WithRegion("us-east-2"),
+    config.WithRegion("us-east-1"),
 )
 if err != nil {
     return nil, fmt.Errorf("failed to load AWS config: %v", err)
@@ -103,18 +102,7 @@ if err != nil {
 client := bedrockruntime.NewFromConfig(cfg)
 
 systemList := []map[string]interface{}{{ 
-	"text": `This is a recipe. please give me a JSON object that contains the following:
-			1. a list of ingredients with quantities and units
-			2. a list of step-by-step instructions
-			3. a title for the recipe
-			4. a brief description of the recipe if available
-			5. estimated total time
-			6. number of servings
-			7. cuisine type (e.g., Italian, Chinese, Mexican, etc.)
-			8. meal type (e.g., breakfast, lunch, dinner, snack, dessert)
-			9. country of origin
-			10. an image of the final dish if available
-			return exactly what it says on the page or "unknown" if not available.`,
+	"text": ``,
 },}
 
 // Use the direct Nova model format with schemaVersion
@@ -131,7 +119,18 @@ messageList := []map[string]interface{}{
 				},
 			},
 			{
-				"text": "Please analyze this recipe image.",
+				"text": `This is a recipe, please give me the following in the form of a valid json object:
+						1. a list of ingredients with quantities and units
+						2. a list of step-by-step instructions
+						3. a title for the recipe
+						4. a brief description of the recipe if available
+						5. estimated total time
+						6. number of servings
+						7. cuisine type (e.g., Italian, Chinese, Mexican, etc.)
+						8. meal type (e.g., breakfast, lunch, dinner, snack, dessert)
+						9. country of origin
+						10. an image of the final dish if available
+						return exactly what it says on the page or "unknown" if not available.`,
 			},
 		},
 	},
@@ -139,11 +138,10 @@ messageList := []map[string]interface{}{
 
 infParams := map[string]interface{}{
 	"maxTokens":   4000,
-	"temperature": 0.1,	
+	"temperature": 0.7,
+	"topP":        0.9,
+	"topK":        40,
 }
-
-// fmt.Printf("\n\n\n%+v\n\n\n%+v\n\n\n%+v\n", messageList, systemList, infParams)
-fmt.Printf("\n\n\nPreparing to send request to Bedrock... %+v\n\n\n", mediaType)
 	
 requestBody := map[string]interface{}{
 	"schemaVersion": 	"messages-v1",
@@ -173,7 +171,7 @@ var response NovaResponse
 if err := json.NewDecoder(bytes.NewReader(output.Body)).Decode(&response); err != nil {
     return nil, fmt.Errorf("failed to decode response: %v", err)
 }
-
+fmt.Print(response);
 aiResponse := response.Output.Message.Content[0].Text
 fmt.Printf("\n\n\nAI Response: %s\n", aiResponse)
 // Clean the JSON response
