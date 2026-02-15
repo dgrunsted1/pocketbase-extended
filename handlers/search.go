@@ -1,29 +1,33 @@
 package handlers
 
 import (
-    "log"
-    "net/http"
-    "strings"
-    "github.com/pocketbase/dbx"
-    "github.com/pocketbase/pocketbase"
-    "github.com/pocketbase/pocketbase/core"
-    
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+
+	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/core"
 )
 
 type SearchRequest struct {
-    SearchVal          string   `json:"search_val"`
-	SortVal            string   `json:"sort_val"`
-	SelectedCategories []string `json:"selected_categories"`
-	SelectedCountries  []string `json:"selected_countries"`
-	SelectedCuisines   []string `json:"selected_cuisines"`
-	SelectedAuthors    []string `json:"selected_authors"`
-	Page               int      `json:"page"`
-	PerPage            int      `json:"per_page"`
+	SearchVal          	string   `json:"search_val"`
+	SortVal            	string   `json:"sort_val"`
+	SelectedCategories 	[]string `json:"selected_categories"`
+	SelectedCountries  	[]string `json:"selected_countries"`
+	SelectedCuisines   	[]string `json:"selected_cuisines"`
+	SelectedAuthors    	[]string `json:"selected_authors"`
+	Page               	int      `json:"page"`
+	PerPage            	int      `json:"per_page"`
+	UserId		   		string   `json:"user_id"`
+	Made		   		bool     `json:"made"`
+	Favorite	   		bool     `json:"fav"`
 }
 
 type Recipe struct {
 	Title       string `db:"title" json:"title"`
-	Id       string `db:"id" json:"id"`
+	Id       	string `db:"id" json:"id"`
 	Author 		string `db:"author" json:"author"`
 	Time        string `db:"time" json:"time"`
 	Image       string `db:"image" json:"image"`
@@ -34,7 +38,9 @@ type Recipe struct {
 	Directions 	string `db:"directions" json:"directions"`
 	IngrList 	string `db:"ingr_list" json:"ingr_list"`
 	Servings 	string `db:"servings" json:"servings"`
-	User 	string `db:"user" json:"user"`
+	User 		string `db:"user" json:"user"`
+	Made 		bool   `db:"made" json:"made"`
+	Favorite 	bool   `db:"favorite" json:"favorite"`
 }
 
 type Category struct {
@@ -48,8 +54,18 @@ func search_tables() string {
 }
 
 func search_filters(cat_type string, searchData SearchRequest) string {
-	print(cat_type)
-	var query = ` made = 1`
+	var query = ``
+	if (searchData.UserId != "") {
+		query += ` r.user = '` + searchData.UserId + `'`
+		if (searchData.Made){
+			query += ` and r.made = 1`
+		}
+		if (searchData.Favorite){
+			query += ` and r.favorite = 1`
+		}
+	}else {
+		query += ` r.made = 1`
+	}
 	if (len(searchData.SelectedCategories) > 0 && cat_type != "category") {
 		query += ` and r.category IN (`
 		for i := range searchData.SelectedCategories {
@@ -102,7 +118,7 @@ func search_filters(cat_type string, searchData SearchRequest) string {
 }
 
 func get_recipe_query(searchData SearchRequest) string {
-	var query = `SELECT r.id, r.title, r.author, r.time, r.image, r.category, r.url_id, r.cuisine, r.country, (select count(*) from json_each(r.directions)) as directions, (select count(*) from json_each(r.ingr_list)) as ingr_list, r.servings, r.user
+	var query = `SELECT r.id, r.title, r.author, r.time, r.image, r.category, r.url_id, r.cuisine, r.country, (select count(*) from json_each(r.directions)) as directions, (select count(*) from json_each(r.ingr_list)) as ingr_list, r.servings, r.user, r.made, r.favorite
 					`+search_tables()+`
 					WHERE`+search_filters("", searchData)
 
@@ -146,7 +162,6 @@ func HandleSearch(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
         if err := e.BindBody(&searchData); err != nil {
             return e.BadRequestError("Failed to read request data", err)
         }
-        
         var params = dbx.Params{
             "search_val": searchData.SearchVal,
             "selected_categories": strings.Join(searchData.SelectedCategories, ","),
@@ -185,7 +200,6 @@ func HandleSearch(app *pocketbase.PocketBase) func(e *core.RequestEvent) error {
         if err := app.DB().NewQuery(authorsQuery).Bind(params).All(&authors); err != nil {
             log.Printf("Database error: %v", err)
         }
-
         return e.JSON(http.StatusOK, map[string]interface{}{
             "success":           true,
             "recipes":           recipes,
